@@ -17,13 +17,13 @@ const SPECIAL_TILE_COLORS: Record<string, number> = {
 }
 
 // 棋盤佈局常數
+// 32 格採用 9+7+9+7 分佈（底9、右7、上9、左7），避免四個角落重疊計數的 28 格問題
 const BOARD_LEFT = 20       // 棋盤左上角 X
 const BOARD_TOP = 88        // 棋盤左上角 Y（留空間給玩家面板）
-const TILE_W = 155          // 格子寬度
-const TILE_H = 76           // 格子高度
-const TILES_PER_SIDE = 8    // 每邊 8 格
-const BOARD_W = TILE_W * TILES_PER_SIDE   // 棋盤寬度 1240
-const BOARD_H = TILE_H * TILES_PER_SIDE   // 棋盤高度 608
+const TILE_W = 138          // 格子寬度（9 × 138 = 1242 ≤ 1280）
+const TILE_H = 69           // 格子高度（88 + 9 × 69 = 709 ≤ 720）
+const BOARD_W = TILE_W * 9  // 棋盤寬度 1242
+const BOARD_H = TILE_H * 9  // 棋盤高度 621
 const CORNER_RADIUS = 8     // 圓角半徑
 
 // 字型設定
@@ -192,34 +192,34 @@ export class BoardRenderer {
   /**
    * 計算 32 格的中心座標
    *
-   * 排列方式（順時針）：
-   * - 底邊（左→右）：格子 0~7
-   * - 右邊（下→上）：格子 8~15
-   * - 上邊（右→左）：格子 16~23
-   * - 左邊（上→下）：格子 24~31
+   * 排列方式（順時針，9+7+9+7 分佈，角落格只計一次）：
+   * - 底邊（左→右）：格子  0~ 8，共 9 格（含左下、右下角）
+   * - 右邊（下→上）：格子  9~15，共 7 格（不含角落）
+   * - 上邊（右→左）：格子 16~24，共 9 格（含右上、左上角）
+   * - 左邊（上→下）：格子 25~31，共 7 格（不含角落）
    */
   private calculateTilePositions(): void {
     for (let i = 0; i < 32; i++) {
       let x: number
       let y: number
 
-      if (i < 8) {
-        // 底邊：從左到右
+      if (i < 9) {
+        // 底邊：從左到右（含兩端角落）
         x = BOARD_LEFT + i * TILE_W + TILE_W / 2
         y = BOARD_TOP + BOARD_H - TILE_H / 2
       } else if (i < 16) {
-        // 右邊：從下到上
-        const idx = i - 8
+        // 右邊：從下到上（不含角落，idx 從 1 開始）
+        const idx = i - 8   // idx = 1..7
         x = BOARD_LEFT + BOARD_W - TILE_W / 2
         y = BOARD_TOP + BOARD_H - idx * TILE_H - TILE_H / 2
-      } else if (i < 24) {
-        // 上邊：從右到左
-        const idx = i - 16
+      } else if (i < 25) {
+        // 上邊：從右到左（含兩端角落）
+        const idx = i - 16  // idx = 0..8
         x = BOARD_LEFT + BOARD_W - idx * TILE_W - TILE_W / 2
         y = BOARD_TOP + TILE_H / 2
       } else {
-        // 左邊：從上到下
-        const idx = i - 24
+        // 左邊：從上到下（不含角落，idx 從 1 開始）
+        const idx = i - 24  // idx = 1..7
         x = BOARD_LEFT + TILE_W / 2
         y = BOARD_TOP + idx * TILE_H + TILE_H / 2
       }

@@ -77,6 +77,8 @@ export class GameScene extends Phaser.Scene {
   private cardEnabled: boolean = false
   private gameLog: string[] = []
   private _pendingSaveData: any = null
+  // 遙控骰子強制點數（null 表示正常擲骰）
+  private forcedDiceValue: number | null = null
 
   constructor() {
     super({ key: 'GameScene' })
@@ -266,7 +268,15 @@ export class GameScene extends Phaser.Scene {
     const player = this.gameState.getCurrentPlayer()
 
     soundManager.playDice()
-    const diceResult = this.turnManager.rollDice()
+    let diceResult = this.turnManager.rollDice()
+    // 遙控骰子：用強制點數覆蓋本次擲骰結果
+    if (this.forcedDiceValue !== null) {
+      const v = this.forcedDiceValue
+      this.forcedDiceValue = null
+      const die2 = Math.floor(v / 2)
+      const die1 = v - die2
+      diceResult = { die1, die2, total: v, isDouble: die1 === die2 }
+    }
     await this.dice.roll(diceResult)
 
     if (player.skipNextTurn && player.position === 24) {
@@ -347,6 +357,10 @@ export class GameScene extends Phaser.Scene {
         this.cardSystem.executeCardEffect(player.id, chanceCard)
         this.addLog(`第${this.gameState.currentRound}回合 ${player.name} 抽到：${chanceCard.name}`)
         this.updateAllVisuals()
+        // 同步所有棋子位置（卡片效果可能移動玩家）
+        for (const p of this.gameState.players) {
+          this.playerRenderer.updatePlayerPosition(p.id, p.position, false)
+        }
         this.checkBankruptcy(player)
         break
       }
@@ -358,6 +372,10 @@ export class GameScene extends Phaser.Scene {
         this.cardSystem.executeCardEffect(player.id, fateCard)
         this.addLog(`第${this.gameState.currentRound}回合 ${player.name} 抽到：${fateCard.name}`)
         this.updateAllVisuals()
+        // 同步所有棋子位置（卡片效果可能移動玩家）
+        for (const p of this.gameState.players) {
+          this.playerRenderer.updatePlayerPosition(p.id, p.position, false)
+        }
         this.checkBankruptcy(player)
         break
       }
@@ -581,24 +599,29 @@ export class GameScene extends Phaser.Scene {
         (amount: number) => {
           this.bankSystem.deposit(player.id, amount)
           this.updateAllVisuals()
+          resolve()  // 操作後結束銀行回合
         },
         (amount: number) => {
           this.bankSystem.withdraw(player.id, amount)
           this.updateAllVisuals()
+          resolve()
         },
         (amount: number) => {
           this.bankSystem.takeLoan(player.id, amount)
           this.updateAllVisuals()
+          resolve()
         },
         (amount: number) => {
           this.bankSystem.repayLoan(player.id, amount)
           this.updateAllVisuals()
+          resolve()
         },
         () => {
           this.bankSystem.purchaseRandomCard(player.id)
           this.updateAllVisuals()
+          resolve()
         },
-        () => { resolve() }
+        () => { resolve() }  // 直接關閉也結束等待
       )
     })
   }
@@ -622,13 +645,65 @@ export class GameScene extends Phaser.Scene {
 
     this.actionMenu.showCardSelection(
       player.cards,
-      (card: Card) => {
-        this.cardSystem.useSpecialCard(player.id, card.id)
-        this.updateAllVisuals()
-        this.updateCardButtonState()
-      },
+      (card: Card) => void this.executeCardWithTarget(player, card),
       () => {}
     )
+  }
+
+  private async executeCardWithTarget(player: Player, card: Card): Promise<void> {
+    type TargetData = { targetPlayerId?: number; targetPropertyId?: number; diceValue?: number; targetTileId?: number }
+    let targetData: TargetData | undefined
+
+    const action = card.effect.action
+
+    if (action === 'taxAudit') {
+      const others = this.gameState.players.filter(p => p.id !== player.id && !p.isBankrupt)
+      if (others.length === 0) {
+        this.actionMenu.showMessage('沒有可查稅的目標', 1500)
+        return
+      }
+      const targetPlayerId = await this.actionMenu.showPlayerSelector(
+        others.map(p => ({ id: p.id, name: p.name })),
+        '查稅卡：選擇目標玩家'
+      )
+      if (targetPlayerId === null) return
+      targetData = { targetPlayerId }
+
+    } else if (action === 'placeRoadblock') {
+      const targetTileId = await this.actionMenu.showTileSelector(
+        BOARD_TILES.map(t => ({ id: t.id, label: t.label })),
+        '路障卡：選擇放置格子'
+      )
+      if (targetTileId === null) return
+      targetData = { targetTileId }
+
+    } else if (action === 'demolish') {
+      const targetables = this.gameState.properties.filter(
+        p => p.ownerId !== null && p.ownerId !== player.id && p.buildingLevel > 0
+      )
+      if (targetables.length === 0) {
+        this.actionMenu.showMessage('沒有可拆除的對手建築', 1500)
+        return
+      }
+      const targetPropertyId = await this.actionMenu.showPropertySelector(
+        targetables.map(p => ({ id: p.id, name: p.name, buildingLevel: p.buildingLevel })),
+        '拆除卡：選擇目標地產'
+      )
+      if (targetPropertyId === null) return
+      targetData = { targetPropertyId }
+
+    } else if (action === 'remoteDice') {
+      const diceValue = await this.actionMenu.showDiceSelector('遙控骰子：選擇下次擲骰點數')
+      if (diceValue === null) return
+      this.forcedDiceValue = diceValue
+      targetData = { diceValue }
+    }
+
+    const success = this.cardSystem.useSpecialCard(player.id, card.id, targetData)
+    if (success) {
+      this.updateAllVisuals()
+      this.updateCardButtonState()
+    }
   }
 
   // ==================== 輔助方法 ====================

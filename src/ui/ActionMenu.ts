@@ -226,6 +226,130 @@ export class ActionMenu {
   }
 
   /**
+   * 顯示玩家選擇介面，回傳被選玩家的 id，取消則回傳 null
+   */
+  showPlayerSelector(
+    players: Array<{ id: number; name: string }>,
+    title: string
+  ): Promise<number | null> {
+    return new Promise(resolve => {
+      this.hide()
+      const dialogW = 340
+      const dialogH = 80 + players.length * 55
+      const container = this.createOverlayContainer()
+      this.drawDialogBox(container, dialogW, dialogH)
+      this.addText(container, 0, -dialogH / 2 + 28, title, '18px', '#ffffff', 'bold')
+
+      players.forEach((p, i) => {
+        const y = -dialogH / 2 + 68 + i * 52
+        this.createButton(container, 0, y, 260, p.name, BUTTON_BG, BUTTON_HOVER, () => {
+          this.hide(); resolve(p.id)
+        })
+      })
+
+      this.createButton(container, 0, dialogH / 2 - 28, 120, '取消', BUTTON_CANCEL_BG, BUTTON_CANCEL_HOVER, () => {
+        this.hide(); resolve(null)
+      })
+      this.container = container
+    })
+  }
+
+  /**
+   * 顯示地產選擇介面，回傳被選地產的 id，取消則回傳 null
+   */
+  showPropertySelector(
+    properties: Array<{ id: number; name: string; buildingLevel: number }>,
+    title: string
+  ): Promise<number | null> {
+    return new Promise(resolve => {
+      this.hide()
+      const dialogW = 380
+      const dialogH = Math.min(80 + properties.length * 52, 480)
+      const container = this.createOverlayContainer()
+      this.drawDialogBox(container, dialogW, dialogH)
+      this.addText(container, 0, -dialogH / 2 + 28, title, '18px', '#ffffff', 'bold')
+
+      const visibleCount = Math.floor((dialogH - 80) / 52)
+      const shown = properties.slice(0, visibleCount)
+      shown.forEach((prop, i) => {
+        const y = -dialogH / 2 + 68 + i * 52
+        const label = `${prop.name}（Lv.${prop.buildingLevel}）`
+        this.createButton(container, 0, y, 300, label, 0x6c3483, 0x9b59b6, () => {
+          this.hide(); resolve(prop.id)
+        })
+      })
+
+      this.createButton(container, 0, dialogH / 2 - 28, 120, '取消', BUTTON_CANCEL_BG, BUTTON_CANCEL_HOVER, () => {
+        this.hide(); resolve(null)
+      })
+      this.container = container
+    })
+  }
+
+  /**
+   * 顯示格子選擇介面（4 欄排列），回傳被選格子的 id，取消則回傳 null
+   */
+  showTileSelector(
+    tiles: Array<{ id: number; label: string }>,
+    title: string
+  ): Promise<number | null> {
+    return new Promise(resolve => {
+      this.hide()
+      const cols = 4
+      const rows = Math.ceil(tiles.length / cols)
+      const dialogW = 520
+      const cellW = 110
+      const dialogH = 80 + rows * 50
+      const container = this.createOverlayContainer()
+      this.drawDialogBox(container, dialogW, dialogH)
+      this.addText(container, 0, -dialogH / 2 + 26, title, '17px', '#ffffff', 'bold')
+
+      const startX = -(cols - 1) * (cellW + 8) / 2
+      tiles.forEach((tile, i) => {
+        const col = i % cols
+        const row = Math.floor(i / cols)
+        const x = startX + col * (cellW + 8)
+        const y = -dialogH / 2 + 64 + row * 50
+        this.createButton(container, x, y, cellW, tile.label, BUTTON_BG, BUTTON_HOVER, () => {
+          this.hide(); resolve(tile.id)
+        })
+      })
+
+      this.createButton(container, 0, dialogH / 2 - 28, 120, '取消', BUTTON_CANCEL_BG, BUTTON_CANCEL_HOVER, () => {
+        this.hide(); resolve(null)
+      })
+      this.container = container
+    })
+  }
+
+  /**
+   * 顯示骰子點數選擇介面（1–6），回傳選擇的點數，取消則回傳 null
+   */
+  showDiceSelector(title: string): Promise<number | null> {
+    return new Promise(resolve => {
+      this.hide()
+      const container = this.createOverlayContainer()
+      this.drawDialogBox(container, 420, 170)
+      this.addText(container, 0, -58, title, '18px', '#ffffff', 'bold')
+
+      const values = [1, 2, 3, 4, 5, 6]
+      const cellW = 52
+      const startX = -(values.length - 1) * 60 / 2
+      values.forEach((v, i) => {
+        const x = startX + i * 60
+        this.createButton(container, x, -4, cellW, `${v}`, BUTTON_BG, BUTTON_HOVER, () => {
+          this.hide(); resolve(v)
+        })
+      })
+
+      this.createButton(container, 0, 50, 120, '取消', BUTTON_CANCEL_BG, BUTTON_CANCEL_HOVER, () => {
+        this.hide(); resolve(null)
+      })
+      this.container = container
+    })
+  }
+
+  /**
    * 顯示暫時訊息
    * @param text - 訊息文字
    * @param duration - 顯示時間（毫秒），預設 2000
