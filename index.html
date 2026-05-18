@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>台灣大富翁</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      display: flex;
+      flex-direction: row;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: #1a1a2e;
+    }
+    #game-container {
+      flex: 1;
+      height: 100vh;
+      overflow: hidden;
+    }
+    #sidebar {
+      width: 220px;
+      min-width: 220px;
+      height: 100vh;
+      background: #12122a;
+      padding: 8px;
+      color: #ddd;
+      font-family: Arial, "Microsoft JhengHei", sans-serif;
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      overflow-y: auto;
+      border-left: 1px solid #2a2a4a;
+    }
+    #sb-round {
+      text-align: center;
+      font-size: 13px;
+      color: #aaa;
+      padding: 4px 0;
+      background: #0d0d1a;
+      border-radius: 4px;
+    }
+    .sb-btn {
+      width: 100%;
+      padding: 8px 6px;
+      border: none;
+      border-radius: 6px;
+      background: #2a2a4e;
+      color: #ddd;
+      font-family: Arial, "Microsoft JhengHei", sans-serif;
+      font-size: 13px;
+      cursor: pointer;
+      text-align: left;
+      transition: background 0.15s;
+    }
+    .sb-btn:hover:not(:disabled) { background: #3a3a6e; }
+    .sb-btn:disabled { opacity: 0.4; cursor: default; }
+    .sb-btn.primary {
+      background: #c0392b;
+      color: #fff;
+      font-weight: bold;
+      text-align: center;
+    }
+    .sb-btn.primary:hover:not(:disabled) { background: #e74c3c; }
+    .sb-btn.danger { background: #7f1f1f; }
+    .sb-btn.danger:hover:not(:disabled) { background: #a03030; }
+    hr { border: none; border-top: 1px solid #2a2a4a; margin: 2px 0; }
+    .sb-section-title {
+      font-size: 12px;
+      color: #888;
+      font-weight: bold;
+      cursor: pointer;
+      user-select: none;
+      padding: 2px 0;
+    }
+    .sb-section-title:hover { color: #aaa; }
+    #settings-panel { display: flex; flex-direction: column; gap: 4px; }
+    #settings-panel label { font-size: 11px; color: #888; margin-top: 4px; }
+    #settings-panel input[type="range"] {
+      width: 100%;
+      accent-color: #e74c3c;
+    }
+    #game-log {
+      flex: 1;
+      overflow-y: auto;
+      font-size: 11px;
+      max-height: 220px;
+      background: #0d0d1a;
+      padding: 4px;
+      border-radius: 4px;
+      color: #aaa;
+      line-height: 1.6;
+    }
+    .log-entry { padding: 1px 0; border-bottom: 1px solid #1a1a2e; }
+  </style>
+</head>
+<body>
+  <div id="game-container"></div>
+  <div id="sidebar">
+    <!-- 回合狀態 -->
+    <div id="sb-round">第 - / 50 回合</div>
+
+    <!-- 主要操作 -->
+    <button id="btn-roll" class="sb-btn primary" disabled>🎲 擲骰子</button>
+    <button id="btn-card" class="sb-btn" disabled>🃏 使用卡片</button>
+
+    <hr>
+
+    <!-- 設定（可展開/收合） -->
+    <div id="sb-settings">
+      <div class="sb-section-title" id="toggle-settings">⚙️ 設定 ▼</div>
+      <div id="settings-panel">
+        <label>BGM 音量</label>
+        <input type="range" id="bgm-volume" min="0" max="100" value="40">
+        <label>音效音量</label>
+        <input type="range" id="sfx-volume" min="0" max="100" value="60">
+        <button id="btn-fastmode" class="sb-btn">⚡ 快速模式 OFF</button>
+        <button id="btn-menu" class="sb-btn danger">↩ 回主選單</button>
+      </div>
+    </div>
+
+    <hr>
+
+    <!-- 記錄檔 -->
+    <div class="sb-section-title">📋 記錄檔</div>
+    <div id="game-log"></div>
+
+    <hr>
+
+    <!-- 存檔 -->
+    <button id="btn-save" class="sb-btn">💾 儲存檔案</button>
+    <button id="btn-load" class="sb-btn">📂 載入檔案</button>
+    <input id="file-input" type="file" accept=".json" hidden>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+  <script>
+    // 監聽遊戲狀態變化
+    document.addEventListener('game:state', function(e) {
+      var d = e.detail
+      document.getElementById('btn-roll').disabled = !d.canRoll
+      document.getElementById('btn-card').disabled = !d.canCard
+      document.getElementById('btn-fastmode').textContent = d.fastMode ? '⚡ 快速模式 ON' : '⚡ 快速模式 OFF'
+      document.getElementById('sb-round').textContent = d.round > 0 ? '第 ' + d.round + ' / 50 回合' : '第 - / 50 回合'
+    })
+
+    // 監聽記錄事件
+    document.addEventListener('game:log', function(e) {
+      var log = document.getElementById('game-log')
+      log.insertAdjacentHTML('beforeend', e.detail)
+      log.scrollTop = log.scrollHeight
+    })
+
+    // 按鈕點擊
+    document.getElementById('btn-roll').addEventListener('click', function() {
+      if (window.gameAPI) window.gameAPI.rollDice()
+    })
+    document.getElementById('btn-card').addEventListener('click', function() {
+      if (window.gameAPI) window.gameAPI.useCard()
+    })
+    document.getElementById('btn-fastmode').addEventListener('click', function() {
+      if (window.gameAPI) window.gameAPI.toggleFastMode()
+    })
+    document.getElementById('btn-menu').addEventListener('click', function() {
+      if (window.gameAPI) window.gameAPI.gotoMenu()
+    })
+
+    // 音量滑桿
+    document.getElementById('bgm-volume').addEventListener('input', function(e) {
+      if (window.soundManager) window.soundManager.setBGMVolume(e.target.value / 100)
+    })
+    document.getElementById('sfx-volume').addEventListener('input', function(e) {
+      if (window.soundManager) window.soundManager.setSFXVolume(e.target.value / 100)
+    })
+
+    // 存檔
+    document.getElementById('btn-save').addEventListener('click', function() {
+      if (!window.gameAPI) return
+      var state = window.gameAPI.saveGame()
+      if (!state) return
+      var blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' })
+      var a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = 'taiwan-monopoly-' + Date.now() + '.json'
+      a.click()
+    })
+
+    // 載入
+    document.getElementById('btn-load').addEventListener('click', function() {
+      document.getElementById('file-input').click()
+    })
+    document.getElementById('file-input').addEventListener('change', function(e) {
+      var file = e.target.files[0]
+      if (!file) return
+      var reader = new FileReader()
+      reader.onload = function(ev) {
+        try {
+          var data = JSON.parse(ev.target.result)
+          if (window.gameAPI) window.gameAPI.loadGame(data)
+          else alert('請先開始遊戲再載入存檔')
+        } catch(err) { alert('檔案格式錯誤') }
+      }
+      reader.readAsText(file)
+    })
+
+    // 設定面板展開/收合
+    document.getElementById('toggle-settings').addEventListener('click', function() {
+      var panel = document.getElementById('settings-panel')
+      panel.style.display = panel.style.display === 'none' ? 'flex' : 'none'
+    })
+  </script>
+</body>
+</html>

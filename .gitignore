@@ -1,0 +1,31 @@
+# 相依套件
+node_modules/
+
+# 建置輸出
+dist/
+
+# Vite 快取
+.vite/
+
+# 環境變數
+.env
+.env.local
+.env.*.local
+
+# 作業系統
+.DS_Store
+Thumbs.db
+
+# 編輯器
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# superpowers 暫存
+.superpowers/
+
+# TypeScript 編譯快取
+*.tsbuildinfo
