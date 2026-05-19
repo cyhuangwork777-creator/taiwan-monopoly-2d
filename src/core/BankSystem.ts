@@ -4,6 +4,7 @@ import {
   DEPOSIT_INTEREST,
   LOAN_INTEREST,
   CARD_PURCHASE_PRICE,
+  CARD_SELL_PRICE,
   MAX_CARDS
 } from '../config/gameConfig'
 import { SPECIAL_CARDS } from '../config/cardData'
@@ -154,7 +155,73 @@ export class BankSystem {
   }
 
   /**
-   * 購買隨機特殊卡片
+   * 取得 N 張不重複的隨機特殊卡片（用於銀行卡片商店展示）
+   */
+  getRandomCards(count: number): Card[] {
+    const pool = [...SPECIAL_CARDS]
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]]
+    }
+    return pool.slice(0, Math.min(count, pool.length)).map(c =>
+      JSON.parse(JSON.stringify(c)) as Card
+    )
+  }
+
+  /**
+   * 購買指定特殊卡片（銀行卡片商店）
+   * @param playerId - 玩家 ID
+   * @param card - 要購買的卡片
+   */
+  purchaseCard(playerId: number, card: Card): Card | null {
+    const player = this.gameState.getPlayerById(playerId)
+    if (!player) return null
+    if (player.money < CARD_PURCHASE_PRICE) return null
+    if (player.cards.length >= MAX_CARDS) return null
+
+    player.money -= CARD_PURCHASE_PRICE
+    const bought: Card = JSON.parse(JSON.stringify(card))
+    bought.id = `${card.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+    player.cards.push(bought)
+
+    this.gameState.addEvent({
+      type: 'purchaseCard',
+      playerId,
+      message: `${player.name} 花費 $${CARD_PURCHASE_PRICE} 購買了「${bought.name}」`,
+      data: { cardId: bought.id, cardName: bought.name }
+    })
+
+    return bought
+  }
+
+  /**
+   * 賣出手上的卡片，回收 CARD_SELL_PRICE
+   * @param playerId - 玩家 ID
+   * @param cardId - 要賣出的卡片 ID
+   */
+  sellCard(playerId: number, cardId: string): boolean {
+    const player = this.gameState.getPlayerById(playerId)
+    if (!player) return false
+
+    const idx = player.cards.findIndex(c => c.id === cardId)
+    if (idx === -1) return false
+
+    const card = player.cards[idx]
+    player.cards.splice(idx, 1)
+    player.money += CARD_SELL_PRICE
+
+    this.gameState.addEvent({
+      type: 'sellCard',
+      playerId,
+      message: `${player.name} 賣出「${card.name}」，獲得 $${CARD_SELL_PRICE}`,
+      data: { cardName: card.name, amount: CARD_SELL_PRICE }
+    })
+
+    return true
+  }
+
+  /**
+   * 購買隨機特殊卡片（AI 使用）
    * @param playerId - 玩家 ID
    * @returns 購得的卡片（失敗返回 null）
    */

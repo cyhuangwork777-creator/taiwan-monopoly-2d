@@ -593,13 +593,15 @@ export class GameScene extends Phaser.Scene {
 
   private showBankDialog(player: Player): Promise<void> {
     if (this.fastMode) return Promise.resolve()
+    const availableCards = this.bankSystem.getRandomCards(5)
     return new Promise<void>(resolve => {
       this.bankDialog.show(
         player,
+        availableCards,
         (amount: number) => {
           this.bankSystem.deposit(player.id, amount)
           this.updateAllVisuals()
-          resolve()  // 操作後結束銀行回合
+          resolve()
         },
         (amount: number) => {
           this.bankSystem.withdraw(player.id, amount)
@@ -616,12 +618,20 @@ export class GameScene extends Phaser.Scene {
           this.updateAllVisuals()
           resolve()
         },
-        () => {
-          this.bankSystem.purchaseRandomCard(player.id)
+        (card) => {
+          this.bankSystem.purchaseCard(player.id, card)
+          this.addLog(`第${this.gameState.currentRound}回合 ${player.name} 購買卡片「${card.name}」$${3000}`)
           this.updateAllVisuals()
           resolve()
         },
-        () => { resolve() }  // 直接關閉也結束等待
+        (cardId) => {
+          const sold = player.cards.find(c => c.id === cardId)
+          this.bankSystem.sellCard(player.id, cardId)
+          if (sold) this.addLog(`第${this.gameState.currentRound}回合 ${player.name} 賣出卡片「${sold.name}」+$1500`)
+          this.updateAllVisuals()
+          // 不 resolve，讓玩家留在卡片商店繼續操作
+        },
+        () => { resolve() }
       )
     })
   }
