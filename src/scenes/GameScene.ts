@@ -102,6 +102,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.isProcessing = false
     // === 1. 初始化核心系統 ===
     this.gameState = new GameState()
     this.gameState.initGame(this.playerConfigs)
