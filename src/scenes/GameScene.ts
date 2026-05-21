@@ -726,6 +726,16 @@ export class GameScene extends Phaser.Scene {
 
     const success = this.cardSystem.useSpecialCard(player.id, card.id, targetData)
     if (success) {
+      let msg = `${player.name} 使用了「${card.name}」`
+      if (targetData?.targetPropertyId != null) {
+        const targetProp = this.gameState.properties.find(p => p.id === targetData!.targetPropertyId)
+        if (targetProp) msg += `，拆除「${targetProp.name}」建築（${targetProp.buildingLevel + 1}→${targetProp.buildingLevel} 棟）`
+      } else if (targetData?.targetPlayerId != null) {
+        const targetPlayer = this.gameState.getPlayerById(targetData.targetPlayerId)
+        if (targetPlayer) msg += `，目標：${targetPlayer.name}`
+      }
+      this.actionMenu.showMessage(msg, 2000)
+      this.addLog(`第${this.gameState.currentRound}回合 ${msg}`)
       this.updateAllVisuals()
       this.updateCardButtonState()
       for (const p of this.gameState.players) {
