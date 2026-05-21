@@ -30,6 +30,7 @@ export const RENT_MULTIPLIERS: Record<number, number> = {
 
 // 卡片系統
 export const MAX_CARDS = 5               // 手持卡片上限
+export const CARD_SELL_PRICE = 1500      // 賣出卡片回收價格
 export const TAX_RATE = 0.10             // 查稅卡稅率 10%
 
 // 骰子系統
